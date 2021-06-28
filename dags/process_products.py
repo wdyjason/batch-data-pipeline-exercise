@@ -5,11 +5,12 @@ from airflow.operators.postgres_operator import PostgresOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.sensors.bash import BashSensor
 from shared.utils import normalize_csv, load_csv_to_postgres
+from dwh.ods_prodcuts import transform_dim_products_sql
 default_args = {"owner": "airflow"}
 
 
 with DAG(
-        dag_id="process_order",
+        dag_id="process_products",
         start_date=datetime.datetime(2021, 1, 1),
         schedule_interval="@once",
         default_args=default_args,
@@ -47,6 +48,12 @@ with DAG(
         },
     )
 
-
-
     check_csv_readiness >> normalize_products_csv >> truncate_stg_products_table >> load_products_to_stg_products_table
+
+    transform_dim_products_table = PostgresOperator(
+        task_id="load_dim_products_table",
+        postgres_conn_id='dwh',
+        sql=transform_dim_products_sql,
+    )
+
+    load_products_to_stg_products_table >> transform_dim_products_table
